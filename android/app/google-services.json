@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "266999809011",
+    "project_id": "vetty-b5feb",
+    "storage_bucket": "vetty-b5feb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:266999809011:android:f4da9b854e0f23255e8886",
+        "android_client_info": {
+          "package_name": "com.example.vetty"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJiBm1a_Hgu8DNBw5r-C0cVJLV2oN5XyQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
