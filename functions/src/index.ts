@@ -6,6 +6,13 @@ import * as logger from "firebase-functions/logger";
 import {defineSecret} from "firebase-functions/params";
 import {HttpsError, onCall} from "firebase-functions/v2/https";
 
+import {
+  AiNotes,
+  getCurrentCount,
+  isRateLimitReached,
+  parseAiNotes,
+} from "./helpers";
+
 initializeApp();
 
 const db = getFirestore();
@@ -23,11 +30,6 @@ interface GeminiResponse {
       parts?: Array<{text?: string}>;
     };
   }>;
-}
-
-interface AiNotes {
-  summary: string;
-  advice: string;
 }
 
 export const generateConsultationNotes = onCall(
@@ -120,7 +122,7 @@ async function checkRateLimits(userId: string, clientIp: string) {
     const userCount = getCurrentCount(userLimitSnapshot.data(), dayStart);
     const ipCount = getCurrentCount(ipLimitSnapshot.data(), ipWindowStart);
 
-    if (userCount >= USER_DAILY_LIMIT) {
+    if (isRateLimitReached(userCount, USER_DAILY_LIMIT)) {
       logger.warn("🚫 AI request blocked by daily user limit");
       throw new HttpsError(
         "resource-exhausted",
@@ -128,7 +130,7 @@ async function checkRateLimits(userId: string, clientIp: string) {
       );
     }
 
-    if (ipCount >= IP_FIVE_MINUTE_LIMIT) {
+    if (isRateLimitReached(ipCount, IP_FIVE_MINUTE_LIMIT)) {
       logger.warn("🚫 AI request blocked by IP rate limit");
       throw new HttpsError(
         "resource-exhausted",
@@ -147,23 +149,6 @@ async function checkRateLimits(userId: string, clientIp: string) {
       expiresAt: Timestamp.fromMillis(ipWindowStart + FIVE_MINUTES_IN_MS),
     });
   });
-}
-
-/**
- * Returns the count for the active rate-limit window.
- * @param {FirebaseFirestore.DocumentData|undefined} data Counter data.
- * @param {number} windowStart Active window start time.
- * @return {number} Current request count.
- */
-function getCurrentCount(
-  data: FirebaseFirestore.DocumentData | undefined,
-  windowStart: number
-): number {
-  if (data?.windowStart !== windowStart) {
-    return 0;
-  }
-
-  return typeof data.count === "number" ? data.count : 0;
 }
 
 /**
@@ -287,15 +272,7 @@ async function generateAiNotes(consultation: {
     throw new Error("Gemini returned no notes.");
   }
 
-  const parsed = JSON.parse(responseText) as Partial<AiNotes>;
-  if (typeof parsed.summary !== "string" || typeof parsed.advice !== "string") {
-    throw new Error("Gemini returned an invalid response.");
-  }
-
-  return {
-    summary: parsed.summary.trim(),
-    advice: parsed.advice.trim(),
-  };
+  return parseAiNotes(responseText);
 }
 
 /**

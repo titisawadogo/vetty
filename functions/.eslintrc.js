@@ -21,6 +21,7 @@ module.exports = {
   ignorePatterns: [
     "/lib/**/*", // Ignore built files.
     "/generated/**/*", // Ignore generated files.
+    "/test/**/*.cjs", // Tests use Node's JavaScript test runner.
   ],
   plugins: [
     "@typescript-eslint",

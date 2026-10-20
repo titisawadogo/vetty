@@ -78,12 +78,41 @@ class _AiNotesScreenState extends ConsumerState<AiNotesScreen> {
         _isLoading = false;
       });
     } catch (_) {
+      final savedNotes = await _getCompletedNotes();
       if (!mounted) return;
+
+      if (savedNotes != null) {
+        setState(() {
+          _notes = savedNotes;
+          _isLoading = false;
+        });
+        return;
+      }
+
       setState(() {
         _isLoading = false;
         _errorMessage = 'Could not generate AI notes. Please try again.';
       });
     }
+  }
+
+  Future<AiNotes?> _getCompletedNotes() async {
+    try {
+      final consultation = await ref
+          .read(firebaseServiceProvider)
+          .getConsultation(widget.consultation);
+      final notes = consultation?.aiNotes;
+
+      if (consultation?.aiStatus == 'completed' &&
+          notes != null &&
+          (notes.summary.isNotEmpty || notes.advice.isNotEmpty)) {
+        return notes;
+      }
+    } catch (_) {
+      return null;
+    }
+
+    return null;
   }
 
   @override

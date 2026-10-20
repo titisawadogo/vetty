@@ -1,0 +1,85 @@
+name: Functions CI/CD
+
+on:
+  pull_request:
+    paths:
+      - "functions/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/functions.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "functions/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/functions.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check functions
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - name: Get code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: node --test test/*.test.cjs
+
+  deploy:
+    name: Deploy function
+    if: github.event_name == 'push'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Get code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefix functions
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools@15.7.0
+
+      - name: Connect to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: vetty-b5feb
+          workload_identity_provider: projects/266999809011/locations/global/workloadIdentityPools/github/providers/vetty
+          service_account: github-functions-deployer@vetty-b5feb.iam.gserviceaccount.com
+
+      - name: Deploy function
+        run: firebase deploy --only functions:generateConsultationNotes --project vetty-b5feb --non-interactive
